@@ -2,6 +2,8 @@ package com.ecommerce.microcommerce.web.controller;
 
 import com.ecommerce.microcommerce.dao.ProductDao;
 import com.ecommerce.microcommerce.model.Product;
+import com.ecommerce.microcommerce.model.ProductModel;
+import com.ecommerce.microcommerce.services.ProductService;
 import com.ecommerce.microcommerce.web.exceptions.PrixIncorrectException;
 import com.ecommerce.microcommerce.web.exceptions.ProduitIntrouvableException;
 import com.fasterxml.jackson.databind.ser.FilterProvider;
@@ -29,24 +31,29 @@ public class ProductController {
     @Autowired
     private ProductDao productDao;
 
+    @Autowired
+    private ProductService productService;
+
 
     //Récupérer la liste des produits
 
     @RequestMapping(value = "/Produits", method = RequestMethod.GET)
 
-    public MappingJacksonValue listeProduits() {
+    public List<ProductModel> listeProduits() {
 
-        Iterable<Product> produits = productDao.findAll();
+//        Iterable<Product> produits = productDao.findAll();
+//
+//        SimpleBeanPropertyFilter monFiltre = SimpleBeanPropertyFilter.serializeAllExcept("prixAchat");
+//
+//        FilterProvider listDeNosFiltres = new SimpleFilterProvider().addFilter("monFiltreDynamique", monFiltre);
+//
+//        MappingJacksonValue produitsFiltres = new MappingJacksonValue(produits);
+//
+//        produitsFiltres.setFilters(listDeNosFiltres);
 
-        SimpleBeanPropertyFilter monFiltre = SimpleBeanPropertyFilter.serializeAllExcept("prixAchat");
+        List<ProductModel> productModels = productService.findAll();
 
-        FilterProvider listDeNosFiltres = new SimpleFilterProvider().addFilter("monFiltreDynamique", monFiltre);
-
-        MappingJacksonValue produitsFiltres = new MappingJacksonValue(produits);
-
-        produitsFiltres.setFilters(listDeNosFiltres);
-
-        return produitsFiltres;
+        return productModels;
     }
 
 
@@ -54,13 +61,9 @@ public class ProductController {
     @ApiOperation(value = "Récupère un produit grâce à son ID à condition que celui-ci soit en stock!")
     @GetMapping(value = "/Produits/{id}")
 
-    public Product afficherUnProduit(@PathVariable int id) {
-
-        Product produit = productDao.findById(id);
-
-        if(produit==null) throw new ProduitIntrouvableException("Le produit avec l'id " + id + " est INTROUVABLE. Écran Bleu si je pouvais.");
-
-        return produit;
+    public ProductModel afficherUnProduit(@PathVariable int id) {
+        ProductModel model = productService.findOne(id);
+        return model;
     }
 
 
@@ -69,20 +72,19 @@ public class ProductController {
     //ajouter un produit
     @PostMapping(value = "/Produits")
 
-    public ResponseEntity<Void> ajouterProduit(@Valid @RequestBody Product product) throws PrixIncorrectException {
+    public ResponseEntity<Void> ajouterProduit(@Valid @RequestBody ProductModel product) throws PrixIncorrectException {
 
         if (product.getPrix() <= 0) throw new PrixIncorrectException("le prix ne doit pas etre inferieur à zéro ") ;
 
+        ProductModel created = productService.save(product);
 
-        Product productAdded =  productDao.save(product);
-
-        if (productAdded == null)
+        if (created == null)
             return ResponseEntity.noContent().build();
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(productAdded.getId())
+                .buildAndExpand(created.getId())
                 .toUri();
 
         return ResponseEntity.created(location).build();
